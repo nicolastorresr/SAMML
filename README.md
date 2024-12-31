@@ -16,6 +16,6 @@ The Socially Adaptive Multi-Modal Learning (SAMML) framework simulates human-lik
    git clone https://github.com/yourusername/SAMML.git
    cd SAMML
 2. Install dependencies:
-```
-pip install -r requirements.txt
-```
+   ```
+   pip install -r requirements.txt
+   ```

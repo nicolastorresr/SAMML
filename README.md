@@ -20,4 +20,3 @@ The Socially Adaptive Multi-Modal Learning (SAMML) framework simulates human-lik
 ```
 pip install -r requirements.txt
 ```
-3. 

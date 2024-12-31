@@ -13,7 +13,7 @@ The Socially Adaptive Multi-Modal Learning (SAMML) framework simulates human-lik
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/SAMML.git
+   git clone https://github.com/nicolastorresr/SAMML.git
    cd SAMML
 2. Install dependencies:
    ```

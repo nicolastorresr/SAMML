@@ -67,13 +67,112 @@ class SocialEnvironment(gym.Env):
         Execute one step in the environment.
         
         Args:
-            action: Action to take
+        action: Action to take, representing agent's behavior vector
             
         Returns:
-            Tuple containing next state, reward, done flag, and info dict
+            Tuple containing:
+            - next_state: Updated state after action
+            - reward: Social reward obtained
+            - done: Whether the episode is complete
+            - info: Additional information dictionary
         """
-        # Implementation depends on specific social dynamics
-        raise NotImplementedError
+        # Update agent state based on action
+        current_state = self.state
+        next_state = np.zeros_like(current_state)
+        
+        # Extract components from state vector based on paper's setup
+        influence_level = current_state[0]  # Agent's current influence
+        role_vector = current_state[1:4]    # Current role embedding
+        social_context = current_state[4:]   # Network context
+        
+        # Update influence based on action alignment with role
+        role_alignment = np.dot(action, role_vector) / (np.linalg.norm(action) * np.linalg.norm(role_vector))
+        influence_delta = 0.1 * role_alignment  # Scale factor from paper
+        
+        # Calculate network effect on influence (from paper's network dynamics)
+        network_multiplier = 1.0
+        if len(self.other_agents) > 0:
+            # Average influence of neighboring agents
+            neighbor_influences = np.mean([agent.get_influence() for agent in self.other_agents])
+            network_multiplier = 1.0 + 0.2 * (neighbor_influences - influence_level)
+        
+        # Update influence with both individual and network effects
+        new_influence = influence_level + (influence_delta * network_multiplier)
+        new_influence = np.clip(new_influence, 0.0, 1.0)  # Bound influence to [0,1]
+        
+        # Update role vector through soft update
+        alpha = 0.1  # Role adaptation rate from paper
+        new_role = (1 - alpha) * role_vector + alpha * action[:3]
+        new_role = new_role / np.linalg.norm(new_role)  # Normalize
+        
+        # Update social context based on network state
+        new_social_context = self._update_social_context(social_context, action)
+        
+        # Combine updates into next state
+        next_state[0] = new_influence
+        next_state[1:4] = new_role
+        next_state[4:] = new_social_context
+        
+        # Calculate reward using the paper's components
+        reward = self.calculate_reward(self.current_agent, action, self.other_agents)
+        
+        # Episode terminates after max_steps (from paper's 1000 time steps)
+        done = self.steps >= self.max_steps
+        
+        # Store additional metrics for analysis
+        info = {
+            'influence_level': new_influence,
+            'role_alignment': role_alignment,
+            'network_effect': network_multiplier
+        }
+        
+        self.state = next_state
+        self.steps += 1
+        
+        return next_state, reward, done, info
+    
+    def _update_social_context(self, current_context: np.ndarray, 
+                              action: np.ndarray) -> np.ndarray:
+        """
+        Helper method to update the social context based on network interactions.
+        Implements the paper's network clustering and community formation dynamics.
+        
+        Args:
+            current_context: Current social context vector
+            action: Agent's action vector
+            
+        Returns:
+            Updated social context vector
+        """
+        # Extract community structure metrics from context
+        clustering_coeff = current_context[0]
+        community_vector = current_context[1:]
+        
+        # Update clustering coefficient based on action similarity with neighbors
+        if len(self.other_agents) > 0:
+            neighbor_actions = np.array([agent.get_last_action() 
+                                       for agent in self.other_agents])
+            action_similarities = np.mean([np.dot(action, n_action) / 
+                                         (np.linalg.norm(action) * np.linalg.norm(n_action))
+                                         for n_action in neighbor_actions])
+            
+            # Update clustering using paper's community formation rate
+            clustering_delta = 0.25 * (action_similarities - clustering_coeff)
+            new_clustering = np.clip(clustering_coeff + clustering_delta, 0.0, 1.0)
+        else:
+            new_clustering = clustering_coeff
+        
+        # Update community vector through exponential moving average
+        beta = 0.15  # Community adaptation rate from paper
+        new_community = (1 - beta) * community_vector + beta * action
+        new_community = new_community / np.linalg.norm(new_community)  # Normalize
+        
+        # Combine updates
+        new_context = np.zeros_like(current_context)
+        new_context[0] = new_clustering
+        new_context[1:] = new_community
+        
+        return new_context
 
     def reset(self) -> np.ndarray:
         """Reset the environment to initial state"""

@@ -135,7 +135,6 @@ class SocialEnvironment(gym.Env):
                               action: np.ndarray) -> np.ndarray:
         """
         Helper method to update the social context based on network interactions.
-        Implements the paper's network clustering and community formation dynamics.
         
         Args:
             current_context: Current social context vector
